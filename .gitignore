@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+# Cortex's own self-scan output (regenerate with `cortex scan`)
+.cortex/
+CORTEX.md

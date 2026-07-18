@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Cortex launcher: run `python -m cortex` with the install on PYTHONPATH.
+# Symlink or add this directory to your PATH:  ln -s $PWD/bin/cortex ~/.local/bin/cortex
+set -euo pipefail
+HERE="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+exec env PYTHONPATH="${HERE}${PYTHONPATH:+:$PYTHONPATH}" python3 -m cortex "$@"
