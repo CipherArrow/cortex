@@ -35,42 +35,114 @@ DEFAULT_IGNORE_GLOBS = (
 )
 
 # Extension -> (language, extractor-key). The extractor registry maps the
-# extractor-key to an implementation.
+# extractor-key to an implementation. Coverage is tiered:
+#   "python"  = stdlib ast (full fidelity)
+#   "regex"   = language-specific regex rules (functions/classes/imports)
+#   "generic" = conservative universal heuristic (long-tail code languages)
+#   "config"  = top-level keys of data/config files
+#   ""        = file node only (still searchable and part of the graph)
 EXT_LANG = {
-    ".py": ("python", "python"),
-    ".pyi": ("python", "python"),
-    ".js": ("javascript", "regex"),
-    ".jsx": ("javascript", "regex"),
-    ".mjs": ("javascript", "regex"),
-    ".cjs": ("javascript", "regex"),
-    ".ts": ("typescript", "regex"),
-    ".tsx": ("typescript", "regex"),
-    ".svelte": ("svelte", "regex"),
-    ".vue": ("vue", "regex"),
+    # -- Tier 1: Python (ast) ------------------------------------------------
+    ".py": ("python", "python"), ".pyi": ("python", "python"),
+    ".pyw": ("python", "python"),
+    # -- Tier 2: language-specific regex rules -------------------------------
+    ".js": ("javascript", "regex"), ".jsx": ("javascript", "regex"),
+    ".mjs": ("javascript", "regex"), ".cjs": ("javascript", "regex"),
+    ".ts": ("typescript", "regex"), ".tsx": ("typescript", "regex"),
+    ".mts": ("typescript", "regex"), ".cts": ("typescript", "regex"),
+    ".svelte": ("svelte", "regex"), ".vue": ("vue", "regex"),
+    ".astro": ("svelte", "regex"),
     ".rs": ("rust", "regex"),
     ".go": ("go", "regex"),
     ".java": ("java", "regex"),
-    ".kt": ("kotlin", "regex"),
-    ".c": ("c", "regex"),
-    ".h": ("c", "regex"),
-    ".cpp": ("cpp", "regex"),
-    ".cc": ("cpp", "regex"),
-    ".hpp": ("cpp", "regex"),
+    ".kt": ("kotlin", "regex"), ".kts": ("kotlin", "regex"),
+    ".c": ("c", "regex"), ".h": ("c", "regex"),
+    ".cpp": ("cpp", "regex"), ".cc": ("cpp", "regex"), ".cxx": ("cpp", "regex"),
+    ".hpp": ("cpp", "regex"), ".hh": ("cpp", "regex"), ".hxx": ("cpp", "regex"),
     ".cs": ("csharp", "regex"),
     ".rb": ("ruby", "regex"),
     ".php": ("php", "regex"),
-    ".sh": ("shell", "regex"),
-    ".md": ("markdown", "markdown"),
-    ".markdown": ("markdown", "markdown"),
+    ".sh": ("shell", "regex"), ".bash": ("shell", "regex"), ".zsh": ("shell", "regex"),
+    ".swift": ("swift", "regex"),
+    ".scala": ("scala", "regex"), ".sc": ("scala", "regex"),
+    ".dart": ("dart", "regex"),
+    ".lua": ("lua", "regex"),
+    ".ex": ("elixir", "regex"), ".exs": ("elixir", "regex"),
+    ".erl": ("erlang", "regex"), ".hrl": ("erlang", "regex"),
+    ".hs": ("haskell", "regex"),
+    ".clj": ("clojure", "regex"), ".cljs": ("clojure", "regex"), ".cljc": ("clojure", "regex"),
+    ".ml": ("ocaml", "regex"), ".mli": ("ocaml", "regex"),
+    ".fs": ("fsharp", "regex"), ".fsi": ("fsharp", "regex"), ".fsx": ("fsharp", "regex"),
+    ".m": ("objc", "regex"), ".mm": ("objc", "regex"),
+    ".groovy": ("groovy", "regex"), ".gradle": ("groovy", "regex"),
+    ".ps1": ("powershell", "regex"), ".psm1": ("powershell", "regex"),
+    ".pl": ("perl", "regex"), ".pm": ("perl", "regex"),
+    ".r": ("r", "regex"), ".R": ("r", "regex"),
+    ".jl": ("julia", "regex"),
+    ".zig": ("zig", "regex"),
+    ".nim": ("nim", "regex"),
+    ".sol": ("solidity", "regex"),
+    ".proto": ("protobuf", "regex"),
+    ".graphql": ("graphql", "regex"), ".gql": ("graphql", "regex"),
+    ".sql": ("sql", "regex"),
+    ".tf": ("terraform", "regex"), ".tfvars": ("terraform", "regex"),
+    # -- Tier 3: code long-tail via the generic heuristic --------------------
+    ".cr": ("crystal", "generic"), ".vala": ("vala", "generic"),
+    ".d": ("d", "generic"), ".pas": ("pascal", "generic"), ".pp": ("pascal", "generic"),
+    ".f90": ("fortran", "generic"), ".f95": ("fortran", "generic"),
+    ".f03": ("fortran", "generic"), ".f": ("fortran", "generic"),
+    ".adb": ("ada", "generic"), ".ads": ("ada", "generic"),
+    ".cob": ("cobol", "generic"), ".cbl": ("cobol", "generic"),
+    ".ino": ("arduino", "generic"), ".v": ("verilog", "generic"),
+    ".sv": ("systemverilog", "generic"), ".vhd": ("vhdl", "generic"),
+    ".tcl": ("tcl", "generic"), ".rkt": ("racket", "generic"),
+    ".elm": ("elm", "generic"), ".purs": ("purescript", "generic"),
+    ".hx": ("haxe", "generic"), ".gd": ("gdscript", "generic"),
+    # -- Markdown / prose ----------------------------------------------------
+    ".md": ("markdown", "markdown"), ".markdown": ("markdown", "markdown"),
     ".mdx": ("markdown", "markdown"),
-    ".yaml": ("yaml", "config"),
-    ".yml": ("yaml", "config"),
-    ".toml": ("toml", "config"),
-    ".json": ("json", "config"),
+    ".rst": ("rst", ""), ".adoc": ("asciidoc", ""), ".org": ("org", ""),
+    ".tex": ("latex", ""),
+    # -- Data / config -------------------------------------------------------
+    ".yaml": ("yaml", "config"), ".yml": ("yaml", "config"),
+    ".toml": ("toml", "config"), ".json": ("json", "config"),
+    ".jsonc": ("json", "config"), ".json5": ("json", "config"),
+    ".ini": ("ini", "config"), ".cfg": ("ini", "config"), ".conf": ("ini", "config"),
+    ".env": ("dotenv", "config"), ".properties": ("properties", "config"),
+    ".prisma": ("prisma", ""),
+    # -- Markup / styling (file node) ---------------------------------------
+    ".html": ("html", ""), ".htm": ("html", ""), ".xml": ("xml", ""),
+    ".css": ("css", ""), ".scss": ("scss", ""), ".sass": ("sass", ""), ".less": ("less", ""),
 }
 
-# .py files become module nodes; everything else is a plain file node.
-MODULE_LANGS = frozenset({"python"})
+# Files with no (or an irrelevant) extension, keyed by exact basename.
+SPECIAL_FILENAMES = {
+    "Dockerfile": ("dockerfile", ""), "Containerfile": ("dockerfile", ""),
+    "Makefile": ("make", "generic"), "GNUmakefile": ("make", "generic"),
+    "makefile": ("make", "generic"), "Justfile": ("just", "generic"),
+    "CMakeLists.txt": ("cmake", "generic"),
+    "Gemfile": ("ruby", "regex"), "Rakefile": ("ruby", "regex"),
+    "Guardfile": ("ruby", "regex"), "Vagrantfile": ("ruby", "regex"),
+    "Brewfile": ("ruby", "regex"), "Podfile": ("ruby", "regex"),
+    "Fastfile": ("ruby", "regex"),
+    "BUILD": ("starlark", "python"), "BUILD.bazel": ("starlark", "python"),
+    "WORKSPACE": ("starlark", "python"), "Tiltfile": ("starlark", "python"),
+    "Procfile": ("procfile", ""),
+}
+
+# Languages whose files define a namespace and so become MODULE nodes.
+MODULE_LANGS = frozenset({"python", "starlark"})
+
+
+def classify(name_or_path) -> tuple[str, str]:
+    """Return (language, extractor_key) for a file. Single source of truth used
+    by the walker and the scanner. Checks special basenames first, then the
+    extension. Unknown files return ("", "")."""
+    p = Path(name_or_path)
+    special = SPECIAL_FILENAMES.get(p.name)
+    if special:
+        return special
+    return EXT_LANG.get(p.suffix.lower(), ("", ""))
 
 
 @dataclass

@@ -16,6 +16,9 @@ from .base import Extractor
 
 # Top-level YAML key at column 0: `key:` (not a list item, not indented).
 _YAML_TOPKEY = re.compile(r"^([A-Za-z_][\w-]*)\s*:", re.M)
+# INI section headers, and `key=`/`key:` at column 0 for ini/properties/dotenv.
+_INI_SECTION = re.compile(r"^\[([^\]]+)\]", re.M)
+_KV_KEY = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][\w.-]*)\s*[=:]", re.M)
 _MAX_KEYS = 60
 
 
@@ -43,6 +46,14 @@ class ConfigExtractor(Extractor):
                 k = m.group(1)
                 if k not in seen:
                     seen.append(k)
+            keys = seen
+        elif lang in ("ini", "properties", "dotenv"):
+            seen = []
+            for pat in (_INI_SECTION, _KV_KEY):
+                for m in pat.finditer(text):
+                    k = m.group(1)
+                    if k not in seen:
+                        seen.append(k)
             keys = seen
 
         nodes: list[Node] = []

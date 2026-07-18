@@ -6,11 +6,12 @@ from .base import Extractor
 from .config_files import ConfigExtractor
 from .markdown import MarkdownExtractor
 from .python_ast import PythonExtractor
-from .regex_generic import RegexExtractor
+from .regex_generic import GenericExtractor, RegexExtractor
 
 _REGISTRY = {
     "python": PythonExtractor(),
     "regex": RegexExtractor(),
+    "generic": GenericExtractor(),
     "markdown": MarkdownExtractor(),
     "config": ConfigExtractor(),
 }

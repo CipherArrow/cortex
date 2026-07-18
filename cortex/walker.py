@@ -14,7 +14,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from . import MANIFEST_FILE, POINTER_FILE
-from .config import EXT_LANG, Config
+from .config import Config, classify
 from .secure import within_root
 
 
@@ -39,7 +39,7 @@ def file_hash(path: Path) -> str:
 
 
 def is_source(rel_name: str) -> bool:
-    return Path(rel_name).suffix.lower() in EXT_LANG
+    return classify(rel_name)[0] != ""
 
 
 def iter_files(cfg: Config):
@@ -53,7 +53,7 @@ def iter_files(cfg: Config):
                 continue  # Cortex's own root pointer is an output, not input
             if any(fnmatch(fn, g) for g in cfg.ignore_globs):
                 continue
-            if Path(fn).suffix.lower() not in EXT_LANG:
+            if classify(fn)[0] == "":
                 continue
             abs_path = Path(dirpath) / fn
             # A symlinked file whose target escapes the project must not be read

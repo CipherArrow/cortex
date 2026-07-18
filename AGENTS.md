@@ -77,6 +77,11 @@ Add `--json` to any read command for structured output.
 
 ## Local Contracts
 
+- **Symbol fidelity is tiered by language** (~80 supported). Python is parsed
+  exactly (`ast`); ~35 languages have regex rules (functions/classes + imports);
+  the long tail gets a generic heuristic or a searchable file node. So a file
+  always appears in the graph, but symbol-level detail varies — when in doubt,
+  read the file at the `path` the graph gives you.
 - **Node ids are stable** (`sha1(path::qualname)`), so re-scanning is idempotent
   and incremental updates diff cleanly. Do not depend on id *values*; treat them
   as opaque.

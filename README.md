@@ -48,21 +48,32 @@ cortex serve                   # http://127.0.0.1:8377 — the map glows amber
 
 ## What it extracts
 
-| Language(s) | How | What |
-|---|---|---|
-| Python | stdlib `ast` (accurate) | modules, classes, functions/methods, imports, inheritance, direct calls |
-| JS/TS/Svelte/Vue, Rust, Go, Java/Kotlin, C/C++, Ruby, shell | regexes | top-level definitions + imports |
-| Markdown | parser | headings, `[[wikilinks]]`, `[md](links)`, `#tags` |
-| YAML/TOML/JSON | parser | top-level config keys |
+Coverage is tiered — **~80 languages and formats** in total, all with the stdlib
+only (no parsers to install):
+
+| Tier | How | Languages | What |
+|---|---|---|---|
+| **1 — Python** | stdlib `ast` | Python | modules, classes, functions/methods, imports, inheritance, direct calls |
+| **2 — regex rules** | per-language regexes | JS/TS/Svelte/Vue, Rust, Go, Java, Kotlin, C/C++, C#, Ruby, PHP, shell, Swift, Scala, Dart, Lua, Elixir, Erlang, Haskell, Clojure, OCaml, F#, Objective-C, Groovy, PowerShell, Perl, R, Julia, Zig, Nim, Solidity, Protobuf, GraphQL, SQL, Terraform/HCL | functions/classes + imports |
+| **3 — generic heuristic** | universal keyword/`C`-style regex | Crystal, Vala, D, Fortran, Ada, COBOL, Verilog/SystemVerilog, VHDL, Tcl, Racket, Elm, PureScript, Haxe, GDScript, Makefile, CMake, … | best-effort functions/types |
+| **Markdown / prose** | parser | Markdown/MDX (RST, AsciiDoc, Org, LaTeX = file nodes) | headings, `[[wikilinks]]`, `[md](links)`, `#tags` |
+| **Data / config** | parser | YAML, TOML, JSON, INI, `.properties`, `.env` | top-level keys |
+| **Anything else text** | — | any recognized extension + special filenames (`Dockerfile`, `Makefile`, `Gemfile`, `BUILD`, …) | a searchable file node, in the graph and tree |
+
+So even a language Cortex has no rules for still appears in the map, is
+searchable, and participates in the directory structure — it just won't have
+symbol-level detail. Classification lives in one place (`classify()` in
+`cortex/config.py`), keyed by extension or special basename.
 
 Cross-references are resolved to internal files where possible (Python dotted +
-relative imports, JS relative imports, Rust paths, unique-name matches for
-Java/etc.), and everything else becomes an `external` node. Importance is scored
+relative imports, JS relative imports, Rust/Java-style paths, unique-name
+matches), and everything else becomes an `external` node. Importance is scored
 with a built-in PageRank so `hubs` and the map surface the real load-bearing files.
 
-> The regex extractors are a pragmatic default that runs anywhere. The extractor
-> interface is pluggable, so a tree-sitter backend can be added later without
-> touching the graph, index, or query layers.
+> The regex/heuristic extractors are a pragmatic, zero-dependency default that
+> runs anywhere. The extractor interface is pluggable, so an optional tree-sitter
+> backend could be added later for higher fidelity without touching the graph,
+> index, or query layers.
 
 ## Layout
 

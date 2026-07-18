@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 
 from . import DATA_DIR, POINTER_FILE
-from .config import EXT_LANG, MODULE_LANGS, Config, load_config
+from .config import MODULE_LANGS, Config, classify, load_config
 from .emit_markdown import write_map, write_pointer
 from .extractors import get_extractor
 from .extractors.markdown import MarkdownExtractor
@@ -43,8 +43,7 @@ def _file_summary(lang: str, text: str) -> str:
 
 def _add_file(graph: Graph, rel: str, text: str) -> None:
     """Add one file's node + its extracted symbols/edges to the graph."""
-    ext = Path(rel).suffix.lower()
-    lang, extractor_key = EXT_LANG.get(ext, ("", ""))
+    lang, extractor_key = classify(rel)
     kind = MODULE if lang in MODULE_LANGS else FILE
     fid = node_id(rel)
     loc = text.count("\n") + 1 if text else 0
