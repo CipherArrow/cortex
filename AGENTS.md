@@ -89,6 +89,17 @@ Add `--json` to any read command for structured output.
   calls can't be resolved by name without type info, and false edges mislead. So
   "called by" is high-precision but not exhaustive; `imports`/`references`/
   `inherits` are the reliable dependency edges.
+- **Vendored caches are pruned automatically.** Alongside the built-in ignore
+  names (and any `ignore_dirs` in `.cortex/config.toml`), a directory holding a
+  `CACHEDIR.TAG` file is skipped whole — the Cache Directory Tagging
+  Specification that package managers use to mark registry/download caches.
+  Without it one vendored dependency tree can outnumber a project's own source
+  a hundred to one and bury the real hubs. Only the tagged directory is pruned,
+  so hand-written config sitting beside such a cache still scans.
+- **A scanned file's own diagnostics never reach our output.** Python sources
+  are parsed with compile warnings suppressed (`extractors/python_ast.py`) — a
+  legacy regex escape in some third-party file is not Cortex's news to report,
+  and stray warnings corrupt the tool output an agent is reading.
 - **`MAP.md` is generated** — never hand-edit it; edit source and run `cortex sync`.
 - **The graph is best-effort, not a compiler.** It is a navigation aid. When the
   graph and the code disagree, the code wins — re-scan and trust the source.

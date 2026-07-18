@@ -67,6 +67,12 @@ can never observe a half-written or corrupted index — mitigating a whole class
 ### Scanning is bounded
 Files above a size cap are skipped, binary files are skipped, and per-line length
 is capped before regex matching, so a pathological file cannot hang a scan.
+**Only regular files are opened** — a FIFO/named pipe blocks on `open()` until a
+writer appears and a character device can stream forever, so either could hang a
+scan indefinitely; both are skipped (this applies to source files and to the
+`CACHEDIR.TAG` probe). Self-tagged cache directories (Cache Directory Tagging
+Specification) are pruned whole, so a vendored dependency tree cannot swamp the
+index.
 
 ## Residual risks (honest limits)
 

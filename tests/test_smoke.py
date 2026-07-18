@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import warnings
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -44,6 +45,18 @@ def build_fixture(root: Path):
            "export function thing() { return 1; }\n")
     _write(root, "docs/Overview.md",
            "# Overview\n\nSee [[core]] and the [util](../pkg/util.py) module. #design\n")
+    # A self-tagged cache directory (Cache Directory Tagging Specification).
+    # Its contents must never be indexed, however source-like they look.
+    _write(root, "vendor_cache/CACHEDIR.TAG",
+           "Signature: 8a477f597d28d172789f06886806bc55\n")
+    _write(root, "vendor_cache/deep/vendored.py",
+           "def vendored_symbol():\n    return 1\n")
+    # A legacy escape in a non-raw string makes CPython warn at compile time.
+    # The file must still index, and the warning must not reach our output.
+    _write(root, "pkg/legacy_escape.py",
+           "import re\n\n\n"
+           "def match_key(s):\n"
+           '    return re.match("^K\\d+$", s)\n')
 
 
 def check(cond, msg):
@@ -57,7 +70,9 @@ def main():
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         build_fixture(root)
-        meta = S.full_scan(root)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            meta = S.full_scan(root)
         cfg = load_config(root)
 
         check(meta["stats"]["nodes"] > 10, "produced nodes")
@@ -86,6 +101,18 @@ def main():
         # heading + tag concept exist
         rows = Q.search(cfg, "Overview")
         check(any(r["kind"] == "heading" for r in rows), "markdown heading indexed")
+
+        # a self-tagged cache directory is pruned, contents and all
+        rows = Q.search(cfg, "vendored_symbol")
+        check(not any(r["name"] == "vendored_symbol" for r in rows),
+              "CACHEDIR.TAG directory is not indexed")
+
+        # the scanned project's compile warnings stay out of our output
+        check(not any(issubclass(w.category, SyntaxWarning) for w in caught),
+              "scanned file's SyntaxWarning is not leaked")
+        rows = Q.search(cfg, "match_key")
+        check(any(r["name"] == "match_key" for r in rows),
+              "file with a legacy escape still indexes")
 
         # incremental sync picks up a new file
         _write(root, "pkg/extra.py", "def brand_new():\n    return 1\n")

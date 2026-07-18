@@ -18,6 +18,32 @@ from .config import Config, classify
 from .secure import within_root
 
 
+# Cache Directory Tagging Specification — the marker `tar --exclude-caches`,
+# rsync, and the common backup tools honour. The signature is the first 43
+# bytes of the tag file.
+CACHEDIR_TAG = "CACHEDIR.TAG"
+CACHEDIR_SIGNATURE = b"Signature: 8a477f597d28d172789f06886806bc55"
+
+
+def _is_cache_dir(path: Path) -> bool:
+    """True if a directory self-identifies as a machine-generated cache.
+
+    Package managers tag their download/registry caches this way, so one check
+    prunes vendored dependency trees that can outnumber a project's own source
+    by orders of magnitude — without hard-coding a name per ecosystem, and
+    without hiding hand-written config that lives beside such a cache.
+    """
+    tag = path / CACHEDIR_TAG
+    try:
+        # Regular files only: opening a FIFO/device here would block forever.
+        if not tag.is_file():
+            return False
+        with open(tag, "rb") as fh:
+            return fh.read(len(CACHEDIR_SIGNATURE)) == CACHEDIR_SIGNATURE
+    except OSError:
+        return False
+
+
 def _looks_binary(path: Path) -> bool:
     """Cheap binary sniff: a NUL byte in the first 8 KiB."""
     try:
@@ -46,8 +72,13 @@ def iter_files(cfg: Config):
     """Yield (abs_path: Path, rel_path: str) for every scannable source file."""
     root = cfg.root
     for dirpath, dirnames, filenames in os.walk(root, followlinks=cfg.follow_symlinks):
-        # Prune ignored directories in place so os.walk skips them.
-        dirnames[:] = [d for d in dirnames if d not in cfg.ignore_dirs]
+        # Prune ignored directories in place so os.walk skips them. Self-tagged
+        # cache directories go too — see _is_cache_dir.
+        dirnames[:] = [
+            d for d in dirnames
+            if d not in cfg.ignore_dirs
+            and not _is_cache_dir(Path(dirpath) / d)
+        ]
         for fn in filenames:
             if fn == POINTER_FILE:
                 continue  # Cortex's own root pointer is an output, not input
@@ -59,6 +90,14 @@ def iter_files(cfg: Config):
             # A symlinked file whose target escapes the project must not be read
             # (prevents a crafted repo from pulling in /etc/shadow etc.).
             if abs_path.is_symlink() and not within_root(abs_path, root):
+                continue
+            # Regular files only. Opening a FIFO blocks until a writer appears,
+            # and character devices can stream forever — either would hang the
+            # scan on a crafted (or merely unlucky) working directory.
+            try:
+                if not abs_path.is_file():
+                    continue
+            except OSError:
                 continue
             try:
                 if abs_path.stat().st_size > cfg.max_file_bytes:

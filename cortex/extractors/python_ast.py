@@ -8,10 +8,26 @@ only those that match a unique internal symbol, which keeps the graph clean.
 from __future__ import annotations
 
 import ast
+import warnings
 
 from ..model import (CALLS, CLASS, CONTAINS, DEFINES, FUNCTION, IMPORTS,
                      INHERITS, METHOD, Edge, Node, node_id)
 from .base import Extractor
+
+
+def _parse_quiet(text: str) -> ast.Module:
+    r"""Parse source without leaking the scanned file's own compile warnings.
+
+    Scanned source is arbitrary third-party code. A legacy regex escape such as
+    "\d" in a non-raw string makes CPython emit a SyntaxWarning at compile time,
+    naming a line in a file the caller never asked about. Those diagnostics
+    belong to the scanned project, not to Cortex, and printing them corrupts
+    command output — so suppress them and let SyntaxError alone signal a file
+    that cannot be parsed.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return ast.parse(text)
 
 
 def _docline(node) -> str:
@@ -101,7 +117,7 @@ class PythonExtractor(Extractor):
 
     def extract(self, rel_path: str, text: str, file_id: str, lang: str):
         try:
-            tree = ast.parse(text)
+            tree = _parse_quiet(text)
         except SyntaxError:
             return [], []  # unparseable: file still exists as a module node
         v = _Visitor(rel_path, file_id)
@@ -110,6 +126,6 @@ class PythonExtractor(Extractor):
 
     def module_summary(self, text: str) -> str:
         try:
-            return _docline(ast.parse(text))
+            return _docline(_parse_quiet(text))
         except SyntaxError:
             return ""

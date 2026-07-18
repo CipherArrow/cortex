@@ -73,6 +73,45 @@ def test_permissions(root):
         check(m == 0o600, f".cortex/{f} is owner-only (0600), got {oct(m)}")
 
 
+def test_special_files(root):
+    """A FIFO/device named like a source file must not block the scan.
+
+    Opening a named pipe blocks until a writer appears, so without a
+    regular-file guard a single `mkfifo evil.py` hangs `cortex scan` forever.
+    """
+    import signal
+    d = root / "specials"
+    d.mkdir(exist_ok=True)
+    (d / "real.py").write_text("def real_fn():\n    return 1\n", "utf-8")
+    fifo = d / "trap.py"
+    tag_fifo = d / "cachelike"
+    try:
+        os.mkfifo(fifo)
+        tag_fifo.mkdir(exist_ok=True)
+        os.mkfifo(tag_fifo / "CACHEDIR.TAG")   # the other open() path
+    except (AttributeError, OSError, NotImplementedError):
+        print("ok: (mkfifo unavailable, skipping special-file test)")
+        return
+
+    def _hung(signum, frame):
+        raise TimeoutError("scan hung on a special file")
+
+    prev = signal.signal(signal.SIGALRM, _hung)
+    signal.alarm(20)
+    try:
+        S.full_scan(root)
+        check(True, "scan completes with FIFOs present (no hang)")
+    except TimeoutError:
+        check(False, "scan completes with FIFOs present (no hang)")
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, prev)
+
+    graph_json = (root / ".cortex" / "graph.json").read_text("utf-8")
+    check("trap.py" not in graph_json, "FIFO is not indexed as a source file")
+    check("real_fn" in graph_json, "regular files beside a FIFO still index")
+
+
 def test_serve_auth(root):
     S.full_scan(root)
     cfg = load_config(root)
@@ -118,6 +157,7 @@ def main():
         test_xss(root)
         test_symlink_escape(root)
         test_permissions(root)
+        test_special_files(root)
         test_serve_auth(root)
     print("\nALL SECURITY CHECKS PASSED")
 
