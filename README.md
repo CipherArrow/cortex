@@ -72,22 +72,49 @@ Cortex/
   README.md            # this file
   bin/cortex           # launcher shim (python -m cortex with PYTHONPATH set)
   cortex/              # the package
-    walker.py          # gitignore-style walk + content-hash manifest (incremental)
+    model.py           # Node/Edge dataclasses + stable content-derived ids
+    config.py          # scan config: ignores, language table, .cortex/config.toml
+    walker.py          # ignore-aware walk + content-hash manifest (incremental)
     extractors/        # python_ast, regex_generic, markdown, config_files
     graph.py           # build, resolve cross-refs, PageRank
-    store.py           # graph.json + SQLite/FTS5 index
+    store.py           # graph.json + SQLite/FTS5 index (atomic swaps)
+    lockfile.py        # flock so concurrent agents' writes serialize
     query.py           # search / context / neighbors / importers / hubs
+    activity.py        # lookup trace feed (.cortex/activity.jsonl) for the live view
+    scan.py            # orchestration: full_scan + incremental sync
     emit_markdown.py   # MAP.md + the CORTEX.md pointer
     emit_mermaid.py    # mermaid / dot export
-    scan.py            # orchestration: full_scan + incremental sync
+    emit_html.py       # static-atlas interactive graph (deterministic layout)
+    serve.py           # localhost live view — glows where agents are looking
+    hookgen.py         # prints the Claude Code hook block with resolved paths
     cli.py             # command-line interface
-  hooks/               # Claude Code PostToolUse auto-sync hook
+  hooks/               # Claude Code PostToolUse auto-sync hook + install guide
   templates/           # drop-in AGENTS snippet for other projects
   tests/test_smoke.py  # end-to-end test
 ```
 
 Per scanned project, Cortex writes only `.cortex/` (graph.json, index.db,
 manifest.json, config.toml, MAP.md) and a `CORTEX.md` pointer at the root.
+
+## Live view
+
+`cortex serve` hosts the graph at `http://127.0.0.1:8377` as a **static atlas**:
+the layout is solved once, deterministically (same structure → same map), and
+never moves during interaction. Click a node to light up its connection paths;
+scroll to zoom, drag to pan. Because every lookup logs which nodes it touched,
+the served page also **glows amber in real time wherever an AI agent is
+currently looking** — a live window into the agent's reasoning path. Set
+`CORTEX_AGENT=<name>` per tool to tag who touched what.
+
+`cortex graph --format html` writes the same atlas as a standalone offline file
+(no server, no live glow).
+
+## Multiple agents at once
+
+Cortex is multi-agent safe: any number of AIs/tools can query one project's map
+simultaneously (reads never block), and concurrent writers (scan/sync) serialize
+on a per-project lock with atomic index swaps — a reader can never catch a
+half-written index. Different models, different tools, same map.
 
 ## Auto-update
 
