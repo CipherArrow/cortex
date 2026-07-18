@@ -7,30 +7,30 @@ project, and it never blocks work (any error → exit 0).
 
 ## Install
 
-1. Make the hook script executable:
+1. Make the hook script executable (from this repo's root):
    ```bash
-   chmod +x /path/to/Cortex/hooks/cortex_hook.py
+   chmod +x hooks/cortex_hook.py
    ```
 
-2. Get the exact settings block (paths are filled in for this machine):
+2. Get the exact settings block — `install-hook` fills in the absolute paths
+   for your machine automatically:
    ```bash
    cortex install-hook
    ```
 
 3. Merge the printed `PostToolUse` entry into the `"hooks"` object of
-   `~/.claude/settings.json`, **keeping any hooks already there**. For example,
-   alongside an existing `StopFailure` hook:
+   `~/.claude/settings.json`, **keeping any hooks already there**. The shape
+   (with `<CORTEX>` standing for wherever you cloned this repo):
 
    ```json
    {
      "hooks": {
-       "StopFailure": [ ... existing ... ],
        "PostToolUse": [
          {
-           "matcher": "Write|Edit|MultiEdit",
+           "matcher": "Write|Edit|MultiEdit|NotebookEdit",
            "hooks": [
              { "type": "command",
-               "command": "python3 /path/to/Cortex/hooks/cortex_hook.py",
+               "command": "python3 <CORTEX>/hooks/cortex_hook.py",
                "timeout": 15 }
            ]
          }

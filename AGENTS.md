@@ -29,8 +29,8 @@ a shell command, you can use Cortex.
 ## Setup (once per machine)
 
 ```bash
-# Put the launcher on PATH (adjust the path to where this repo lives):
-ln -s /path/to/Cortex/bin/cortex ~/.local/bin/cortex
+# From this repo's root, put the launcher on PATH:
+ln -s "$PWD/bin/cortex" ~/.local/bin/cortex
 cortex doctor          # confirms python + sqlite fts5
 ```
 
@@ -137,7 +137,8 @@ the commands above exactly like any other agent.
 ## Verification
 
 ```bash
-PYTHONPATH=/path/to/Cortex python3 tests/test_smoke.py
+# from this repo's root:
+PYTHONPATH=. python3 tests/test_smoke.py
 ```
 Builds a tiny mixed Python/JS/Markdown project, scans it, and asserts that
 imports, wikilinks, headings, queries, and incremental sync all work.

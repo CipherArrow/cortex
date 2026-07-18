@@ -25,4 +25,4 @@ PostToolUse hook is installed).
 If `cortex` isn't on PATH, use:
 `PYTHONPATH=/path/to/Cortex python3 -m cortex <args>`
 
-Full guide: `/path/to/Cortex/AGENTS.md`.
+Full guide: `AGENTS.md` in the Cortex repo.
