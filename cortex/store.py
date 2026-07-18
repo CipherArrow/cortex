@@ -17,10 +17,11 @@ from . import GRAPH_FILE, INDEX_FILE, __version__
 from .config import Config
 from .graph import Graph
 from .model import Edge, Node
+from .secure import harden_file, secure_dir
 
 
 def save_graph(cfg: Config, graph: Graph, extra_meta: dict | None = None) -> dict:
-    cfg.data_dir.mkdir(parents=True, exist_ok=True)
+    secure_dir(cfg.data_dir)   # owner-only: keeps the index unreadable to others
     meta = {
         "tool": "cortex",
         "version": __version__,
@@ -41,7 +42,9 @@ def save_graph(cfg: Config, graph: Graph, extra_meta: dict | None = None) -> dic
     target = cfg.data_dir / GRAPH_FILE
     tmp = target.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(payload, indent=1, ensure_ascii=False), "utf-8")
+    harden_file(tmp)
     os.replace(tmp, target)
+    harden_file(target)
 
     _build_index(cfg, graph, meta)
     return meta
@@ -114,7 +117,9 @@ def _build_index(cfg: Config, graph: Graph, meta: dict) -> None:
         con.commit()
     finally:
         con.close()
+    harden_file(tmp_path)
     os.replace(tmp_path, db_path)
+    harden_file(db_path)
 
 
 def connect(cfg: Config) -> sqlite3.Connection | None:

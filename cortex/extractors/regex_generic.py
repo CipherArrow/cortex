@@ -79,6 +79,17 @@ _SVELTE_SCRIPT = re.compile(r"<script[^>]*>(.*?)</script>", re.S | re.I)
 _GO_IMPORT_BLOCK = re.compile(r"import\s*\((.*?)\)", re.S)
 
 
+_MAX_LINE = 10000  # source lines are short; cap so no crafted mega-line can
+                   # stress a regex (defense in depth — line numbers are preserved
+                   # because the newline count is unchanged).
+
+
+def _cap_lines(text: str) -> str:
+    if len(text) < _MAX_LINE or all(len(ln) <= _MAX_LINE for ln in text.split("\n")):
+        return text
+    return "\n".join(ln[:_MAX_LINE] for ln in text.split("\n"))
+
+
 def _script_text(text: str, lang: str) -> str:
     """For component files, narrow to the <script> region for def scanning."""
     if lang in ("svelte", "vue"):
@@ -96,6 +107,7 @@ class RegexExtractor(Extractor):
         edges: list[Edge] = []
         seen: set[str] = set()
 
+        text = _cap_lines(text)
         scan_text = _script_text(text, lang)
         for pattern, kind in _DEF_RULES.get(lang, ()):  # definitions
             for m in pattern.finditer(scan_text):

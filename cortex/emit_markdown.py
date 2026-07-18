@@ -93,9 +93,11 @@ def write_map(cfg: Config, graph: Graph) -> str:
                 lines.append(f"    - …{more} more (`{CLI_NAME} query` inside {n.path})")
         lines.append("")
 
-    cfg.data_dir.mkdir(parents=True, exist_ok=True)
+    from .secure import harden_file, secure_dir
+    secure_dir(cfg.data_dir)
     out = cfg.data_dir / MAP_FILE
     out.write_text("\n".join(lines), "utf-8")
+    harden_file(out)
     return str(out)
 
 

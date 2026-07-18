@@ -63,6 +63,16 @@ class Node:
     loc: int = 0         # lines of code (files only)
     rank: float = 0.0    # PageRank importance, filled at build time
 
+    def __post_init__(self):
+        # Summaries come from untrusted scanned content (docstrings, headings),
+        # then flow into MAP.md and the graph viewer. Neutralise them at the one
+        # place every node passes through. Names are identifiers; just bound them.
+        from .secure import clean_text
+        if self.summary:
+            self.summary = clean_text(self.summary, 200)
+        if self.name:
+            self.name = clean_text(self.name, 160)
+
     def to_dict(self) -> dict:
         return asdict(self)
 

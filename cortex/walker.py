@@ -15,6 +15,7 @@ from pathlib import Path
 
 from . import MANIFEST_FILE, POINTER_FILE
 from .config import EXT_LANG, Config
+from .secure import within_root
 
 
 def _looks_binary(path: Path) -> bool:
@@ -55,6 +56,10 @@ def iter_files(cfg: Config):
             if Path(fn).suffix.lower() not in EXT_LANG:
                 continue
             abs_path = Path(dirpath) / fn
+            # A symlinked file whose target escapes the project must not be read
+            # (prevents a crafted repo from pulling in /etc/shadow etc.).
+            if abs_path.is_symlink() and not within_root(abs_path, root):
+                continue
             try:
                 if abs_path.stat().st_size > cfg.max_file_bytes:
                     continue
@@ -92,12 +97,15 @@ def load_manifest(cfg: Config) -> dict:
 
 
 def save_manifest(cfg: Config, files: dict) -> None:
-    cfg.data_dir.mkdir(parents=True, exist_ok=True)
+    from .secure import harden_file, secure_dir
+    secure_dir(cfg.data_dir)
     path = cfg.data_dir / MANIFEST_FILE
     tmp = path.with_suffix(".json.tmp")
     payload = {"version": 1, "files": files}
     tmp.write_text(json.dumps(payload, indent=2, sort_keys=True), "utf-8")
+    harden_file(tmp)
     os.replace(tmp, path)
+    harden_file(path)
 
 
 def scan_manifest(cfg: Config) -> dict:

@@ -277,7 +277,7 @@ def render_body(graph: Graph, limit: int = 250, title: str = "Cortex graph") -> 
     legend = "".join(
         f'<span><i class="cx-dot" style="background:{_color(k)}"></i>{k}</span>' for k in kinds)
     js = (_JS.replace("CX_ID", dom_id)
-             .replace("CX_DATA", json.dumps(data, ensure_ascii=False)))
+             .replace("CX_DATA", _safe_json(data)))
     return f"""<style>{_CSS}</style>
 <div class="cx-wrap" id="{dom_id}" style="height:78vh">
   <canvas class="cx-canvas"></canvas>
@@ -294,13 +294,32 @@ def render_body(graph: Graph, limit: int = 250, title: str = "Cortex graph") -> 
 <script>{js}</script>"""
 
 
+# CSP for the standalone/served page (the published artifact uses render_body,
+# which the claude.ai platform wraps in its own CSP). 'unsafe-inline' is required
+# because the page inlines its own script/style, but connect-src 'self' means an
+# injected script still could not exfiltrate to any external host, and no remote
+# code/resource of any kind can load.
+_CSP = ("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+        "img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'")
+
+
 def render_page(graph: Graph, limit: int = 250, title: str = "Cortex graph") -> str:
     body = render_body(graph, limit, title)
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
+            f"<meta http-equiv='Content-Security-Policy' content=\"{_CSP}\">"
             f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>{_esc(title)}</title>"
             f"<style>html,body{{margin:0;height:100%;background:#0f1115}}</style></head>"
             f"<body>{body}</body></html>")
+
+
+def _safe_json(obj) -> str:
+    """JSON for embedding inside a <script> element. Escapes the characters that
+    could otherwise break out of the element or terminate the script early, so
+    scanned content (docstrings, names) can never inject markup or code."""
+    s = json.dumps(obj, ensure_ascii=False)
+    return (s.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+             .replace(" ", "\\u2028").replace(" ", "\\u2029"))
 
 
 def _color(kind: str) -> str:

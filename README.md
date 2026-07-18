@@ -127,6 +127,17 @@ Three tiers, most-to-least automatic:
    after changing files.
 3. **Manual / scheduled** — `cortex scan` on demand, or from a timer.
 
+## Security
+
+Cortex is a local, single-user tool and is hardened accordingly: `.cortex/` is
+owner-only (`0700`/`0600`), `cortex serve` binds loopback only and requires an
+unguessable per-run token held in a `SameSite=Strict` cookie (defeating
+DNS-rebinding/CSRF), scanned content is sanitized and escaped so it cannot inject
+into the graph viewer, symlinks that escape the project are not read, and writes
+are atomic + lock-serialized. Nothing it scans is ever executed, and it has zero
+third-party dependencies. Full threat model and honest residual risks (e.g.
+prompt-injection is inherent to reading any repo): [SECURITY.md](SECURITY.md).
+
 ## Requirements
 
 Python 3.11+ (uses `tomllib`). Verified on Python 3.14. No other dependencies.

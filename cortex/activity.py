@@ -38,8 +38,12 @@ def log_touch(cfg: Config, action: str, ids) -> None:
         if agent:
             ev["agent"] = agent[:40]
         line = json.dumps(ev, separators=(",", ":"))
+        existed = p.exists()
         with open(p, "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
+        if not existed:
+            from .secure import harden_file
+            harden_file(p)  # the live feed reveals what an agent is doing
         if p.stat().st_size > _MAX_BYTES:
             tail = p.read_text("utf-8").splitlines()[-_KEEP_LINES:]
             p.write_text("\n".join(tail) + "\n", "utf-8")

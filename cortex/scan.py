@@ -163,10 +163,15 @@ def _sync_locked(cfg: Config, changed: list[str] | None = None) -> dict:
         meta["scan"] = "noop"
         return meta
 
+    from .secure import within_root
     for rel in set(touched) | set(removed):
         _drop_file(graph, rel)
     for rel in touched:
         abs_path = cfg.root / rel
+        # Defense in depth: never read a path that resolves outside the project,
+        # even if a caller-supplied --changed entry tried to escape.
+        if not within_root(abs_path, cfg.root):
+            continue
         _add_file(graph, rel, _read(abs_path))
     _add_dirs(graph, [r for r in new_manifest])
 
