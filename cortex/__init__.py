@@ -7,7 +7,7 @@ agent (or local LLM) can look things up instead of re-reading the whole tree.
 Zero third-party dependencies: standard library only.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 # --- Naming (centralised so the tool is trivial to rename) -------------------
 # The user-facing name of the tool and its CLI command. To rebrand, change
