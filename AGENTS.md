@@ -137,6 +137,7 @@ Add `--json` to any read command for structured output.
 | `cortex graph --format mermaid\|dot\|html\|json [-o PATH]` | Export for visualization (html = static atlas); `-o` writes to a file |
 | `cortex serve [--port 8377]` | Live graph on localhost — glows amber where agents are looking |
 | `cortex install-hook` | Print the Claude Code auto-sync hook block |
+| `cortex hook` | Run the auto-sync hook body (reads hook JSON on stdin — invoked by the editor, not typed) |
 | `cortex doctor` | Environment check |
 
 `<ref>` accepts a symbol name (`Engine`, `auth.verify_token`), a file path
@@ -176,6 +177,8 @@ tiers. All three must pass before a change ships.
 ## Child DOX Index
 
 - [README.md](README.md) — human-facing overview and quickstart
+- [SECURITY.md](SECURITY.md) — threat model: what is defended, what is not, and
+  how to report a bypass privately
 - [hooks/](hooks/) — Claude Code PostToolUse auto-sync hook + install notes
 - [templates/AGENTS.snippet.md](templates/AGENTS.snippet.md) — drop-in block to
   add to any *other* project's AGENTS.md/CLAUDE.md so its agents adopt Cortex

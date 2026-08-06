@@ -64,13 +64,60 @@ def test_symlink_escape(root):
 
 
 def test_permissions(root):
+    """Every file SECURITY.md names as owner-only must actually be owner-only.
+
+    The doc promises 0600 for six files; this used to check three, so the other
+    three could regress without failing anything. Generate the lazily-created
+    ones first so the check is never vacuously skipped.
+    """
+    from cortex import query as Q
+    from cortex.cli import main as cli_main
+
     S.full_scan(root)
     d = root / ".cortex"
+
+    cli_main(["-C", str(root), "graph", "--format", "html"])   # writes graph.html
+    Q.search(load_config(root), "helper")                       # writes activity.jsonl
+
     dmode = stat.S_IMODE(d.stat().st_mode)
     check(dmode == 0o700, f".cortex dir is owner-only (0700), got {oct(dmode)}")
-    for f in ("graph.json", "index.db", "manifest.json"):
-        m = stat.S_IMODE((d / f).stat().st_mode)
+
+    documented = ("graph.json", "index.db", "manifest.json",
+                  "MAP.md", "graph.html", "activity.jsonl")
+    for f in documented:
+        p = d / f
+        check(p.exists(), f".cortex/{f} exists (else the 0600 check is vacuous)")
+        m = stat.S_IMODE(p.stat().st_mode)
         check(m == 0o600, f".cortex/{f} is owner-only (0600), got {oct(m)}")
+
+
+def test_export_leaves_the_private_dir(root):
+    """`graph -o` is documented as the deliberate exception — verify it is one.
+
+    SECURITY.md tells readers to treat an export as publishing, so the export
+    must genuinely land outside .cortex and must not be silently hardened to
+    0600 (which would make the documented advice wrong in the other direction).
+    """
+    from cortex.cli import main as cli_main
+
+    S.full_scan(root)
+    out = root / "exported_graph.html"
+    cli_main(["-C", str(root), "graph", "--format", "html", "-o", str(out)])
+
+    check(out.is_file(), "graph -o writes to the requested path")
+    check(".cortex" not in out.parts, "the export lands outside the private index")
+
+    expected = 0o666 & ~_current_umask()
+    mode = stat.S_IMODE(out.stat().st_mode)
+    check(mode == expected,
+          f"export respects the caller's umask (got {oct(mode)}, "
+          f"expected {oct(expected)}) rather than being forced to 0600")
+
+
+def _current_umask() -> int:
+    prev = os.umask(0)
+    os.umask(prev)
+    return prev
 
 
 def test_special_files(root):
@@ -157,6 +204,7 @@ def main():
         test_xss(root)
         test_symlink_escape(root)
         test_permissions(root)
+        test_export_leaves_the_private_dir(root)
         test_special_files(root)
         test_serve_auth(root)
     print("\nALL SECURITY CHECKS PASSED")

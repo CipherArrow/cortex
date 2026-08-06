@@ -254,6 +254,12 @@ def cmd_serve(args) -> int:
     return 0
 
 
+def cmd_hook(args) -> int:
+    """Run the auto-sync hook body (reads the editor's JSON on stdin)."""
+    from .hook import run
+    return run()
+
+
 def cmd_install_hook(args) -> int:
     from .hookgen import render_hook_instructions
     print(render_hook_instructions())
@@ -334,6 +340,10 @@ def build_parser() -> argparse.ArgumentParser:
                     help="write the export here instead of stdout (html defaults "
                          f"to {DATA_DIR}/graph.html)")
     sp.set_defaults(func=cmd_graph)
+
+    # Machine-facing: invoked by the editor hook, not typed by a human.
+    sp = sub.add_parser("hook", help="run the auto-sync hook (reads hook JSON on stdin)")
+    sp.set_defaults(func=cmd_hook)
 
     sp = sub.add_parser("serve", help="live graph on localhost — glows as agents access nodes")
     sp.add_argument("--port", type=int, default=8377)

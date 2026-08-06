@@ -18,7 +18,11 @@ do not defend against an attacker who already has your user account or root.
 Cortex never executes what it scans. Python is read with `ast.parse` (parses, does
 not run), other languages with regexes, and config with `tomllib`/`json` (safe
 parsers — no `yaml.load`, `eval`, `exec`, `pickle`, or `subprocess` anywhere).
-**Zero third-party dependencies**, so there is no supply chain to poison.
+**Zero third-party dependencies at runtime**, so there is no supply chain to
+poison — and CI fails the build if the installed distribution's `Requires:` ever
+stops being empty, so the claim cannot rot quietly into being untrue. (Building a
+wheel from source uses `setuptools`, as any Python build does; installing a built
+wheel pulls nothing.)
 
 ### The graph viewer cannot be turned into an attack (no injection)
 Scanned text (docstrings, symbol names, headings) flows into the generated HTML
@@ -49,8 +53,16 @@ load no remote code and exfiltrate to no external host.
 
 ### The index is private to you
 `.cortex/` is created `0700` and its files (`graph.json`, `index.db`,
-`manifest.json`, `MAP.md`, `activity.jsonl`) `0600` — **other local users cannot
-read your knowledge graph or the live "what is the agent doing" feed.**
+`manifest.json`, `MAP.md`, `graph.html`, `activity.jsonl`) `0600` — **other local
+users cannot read your knowledge graph or the live "what is the agent doing" feed.**
+
+**Exports are the deliberate exception.** `cortex graph -o PATH` writes where you
+point it, at your umask, because an export exists to be opened, committed, or
+published — inheriting `0600` would make it useless for that. The exported file
+carries the same material as the index (file paths, symbol names, docstring
+summaries), so treat `-o` as *"publish this"*: if you only want to look at the
+graph, the default `.cortex/graph.html` stays owner-only, and `cortex serve` never
+writes it to disk at all.
 
 ### Reads cannot escape the project
 The scanner does not follow directory symlinks, and skips any **symlinked file

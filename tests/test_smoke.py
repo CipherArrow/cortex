@@ -124,8 +124,54 @@ def main():
         test_tail_index_is_used(root)
         test_model_dicts_cover_all_fields()
         test_glob_matcher_equivalence(root)
+        test_hook_syncs_and_fails_safe(root)
 
         print("\nALL SMOKE CHECKS PASSED")
+
+
+def test_hook_syncs_and_fails_safe(root: Path):
+    """The auto-sync hook must update the map, and must never fail an edit.
+
+    The body lives in the package rather than in hooks/ specifically so that an
+    installed copy has it — a wheel ships `cortex/`, not the repo's top-level
+    directories, so a path-based hook pointed into site-packages/hooks/ would
+    reference a file that does not exist.
+    """
+    import io
+    import json as _json
+
+    from cortex import hook as H
+    from cortex.hookgen import hook_block, hook_command
+
+    cfg = load_config(root)
+
+    # A real edit inside a mapped project reaches the index.
+    _write(root, "pkg/hooked.py", "def hooked_symbol():\n    return 1\n")
+    payload = _json.dumps({"tool_input": {"file_path": str(root / "pkg/hooked.py")}})
+    rc = H.run(io.StringIO(payload))
+    check(rc == 0, "hook exits 0 on a normal edit")
+    rows = Q.search(cfg, "hooked_symbol")
+    check(any(r["name"] == "hooked_symbol" for r in rows),
+          "hook synced the edited file into the index")
+
+    # Everything it cannot handle must still exit 0 — a map refresh must never
+    # fail the user's write.
+    for label, data in (
+        ("malformed json", "not json at all"),
+        ("empty stdin", ""),
+        ("no file_path", '{"tool_input": {}}'),
+        ("file outside any project", '{"tool_input": {"file_path": "/nonexistent/x.py"}}'),
+    ):
+        check(H.run(io.StringIO(data)) == 0, f"hook exits 0 on {label}")
+
+    # The generated command must name something that exists, or install-hook is
+    # handing users a broken line.
+    cmd = hook_command()
+    target = cmd.split()[0]
+    check(Path(target).exists(), f"install-hook's command starts with a real path ({target})")
+    entry = hook_block()["PostToolUse"][0]["hooks"][0]
+    check(entry["command"] == cmd and entry["timeout"] > 0,
+          "hook block carries the resolved command and a timeout")
 
 
 def test_glob_matcher_equivalence(root: Path):

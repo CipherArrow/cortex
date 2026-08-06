@@ -159,8 +159,11 @@ unguessable per-run token held in a `SameSite=Strict` cookie (defeating
 DNS-rebinding/CSRF), scanned content is sanitized and escaped so it cannot inject
 into the graph viewer, symlinks that escape the project are not read, and writes
 are atomic + lock-serialized. Nothing it scans is ever executed, and it has zero
-third-party dependencies. Full threat model and honest residual risks (e.g.
-prompt-injection is inherent to reading any repo): [SECURITY.md](SECURITY.md).
+third-party dependencies (CI fails the build if that ever stops being true).
+The one deliberate exception is `cortex graph -o PATH`: an export goes where you
+point it at your umask, so treat it as publishing the graph rather than storing
+it. Full threat model and honest residual risks (e.g. prompt-injection is
+inherent to reading any repo): [SECURITY.md](SECURITY.md).
 
 ## Requirements
 

@@ -7,20 +7,16 @@ project, and it never blocks work (any error → exit 0).
 
 ## Install
 
-1. Make the hook script executable (from this repo's root):
-   ```bash
-   chmod +x hooks/cortex_hook.py
-   ```
+1. Get the exact settings block. `install-hook` resolves the right command for
+   how *your* copy of Cortex is installed, so run it rather than copying a
+   command from this page:
 
-2. Get the exact settings block — `install-hook` fills in the absolute paths
-   for your machine automatically:
    ```bash
    cortex install-hook
    ```
 
-3. Merge the printed `PostToolUse` entry into the `"hooks"` object of
-   `~/.claude/settings.json`, **keeping any hooks already there**. The shape
-   (with `<CORTEX>` standing for wherever you cloned this repo):
+2. Merge the printed `PostToolUse` entry into the `"hooks"` object of
+   `~/.claude/settings.json`, **keeping any hooks already there**:
 
    ```json
    {
@@ -30,7 +26,7 @@ project, and it never blocks work (any error → exit 0).
            "matcher": "Write|Edit|MultiEdit|NotebookEdit",
            "hooks": [
              { "type": "command",
-               "command": "python3 <CORTEX>/hooks/cortex_hook.py",
+               "command": "<what install-hook printed>",
                "timeout": 15 }
            ]
          }
@@ -39,15 +35,37 @@ project, and it never blocks work (any error → exit 0).
    }
    ```
 
-4. Restart Claude Code (or start a new session) so the hook loads.
+3. Restart Claude Code (or start a new session) so the hook loads.
+
+## Why the command differs by install
+
+The hook body lives in the package (`cortex/hook.py`), so it exists in every
+install, and `install-hook` prints whichever entry point can actually reach it:
+
+| How you installed | Command it prints |
+|---|---|
+| `pipx install` / `pip install` | `<that env's python> -m cortex hook` |
+| Clone + `bin/cortex` on PATH | `<clone>/bin/cortex hook` |
+
+This matters most for **pipx**, which isolates Cortex in its own virtualenv — a
+bare `python3` would not find the package, so the hook must name the interpreter
+that has it. The shim in a clone sets `PYTHONPATH` itself, so it needs nothing
+on PATH.
+
+`hooks/cortex_hook.py` still works and still delegates to the same code, so an
+existing settings.json pointing at it needs no change.
 
 ## How it works
 
 - Reads the hook JSON on stdin, pulls `tool_input.file_path`.
 - Walks up from that file to the nearest ancestor directory containing a
   `.cortex/` folder — so only initialised projects are ever touched.
-- Runs `cortex sync --changed <file>` for that project (incremental: re-reads
-  only the changed file, then re-resolves and re-ranks).
+- Runs an incremental sync for that project (re-reads only the changed file,
+  then re-resolves and re-ranks).
+
+On a very large repo, syncing per save costs about as much as syncing after a
+burst of edits — see the `sync` contract in `AGENTS.md` before wiring this into
+a monorepo.
 
 ## Other agents
 

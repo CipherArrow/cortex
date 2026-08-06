@@ -7,12 +7,28 @@ where it goes, so the user (or an agent, with consent) can install it.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 from . import CLI_NAME, TOOL_NAME
 
-INSTALL_ROOT = Path(__file__).resolve().parent.parent  # the Cortex repo root
-HOOK_SCRIPT = INSTALL_ROOT / "hooks" / "cortex_hook.py"
+INSTALL_ROOT = Path(__file__).resolve().parent.parent  # repo root, in a checkout
+
+
+def hook_command() -> str:
+    """The command to run the auto-sync hook, for however Cortex is installed.
+
+    A source checkout has `bin/cortex` beside the package, and that shim sets
+    PYTHONPATH itself — the one thing guaranteed to work without assuming the
+    repo is importable. Otherwise Cortex is installed, and the interpreter
+    running us already has the package on its path. That second case matters
+    for pipx especially: it isolates Cortex in its own virtualenv, so a bare
+    `python3` would not find it.
+    """
+    shim = INSTALL_ROOT / "bin" / CLI_NAME
+    if shim.is_file():
+        return f"{shim} hook"
+    return f"{sys.executable} -m cortex hook"
 
 
 def hook_block() -> dict:
@@ -20,11 +36,11 @@ def hook_block() -> dict:
     return {
         "PostToolUse": [
             {
-                "matcher": "Write|Edit|MultiEdit",
+                "matcher": "Write|Edit|MultiEdit|NotebookEdit",
                 "hooks": [
                     {
                         "type": "command",
-                        "command": f"python3 {HOOK_SCRIPT}",
+                        "command": hook_command(),
                         "timeout": 15,
                     }
                 ],
@@ -43,15 +59,12 @@ This keeps every {TOOL_NAME}-mapped project fresh automatically: after Claude Co
 writes or edits a file, the hook runs `{CLI_NAME} sync --changed <file>` for the
 project that owns it. It is a no-op for files outside a {TOOL_NAME} project.
 
-1) Ensure the hook script is executable:
-     chmod +x {HOOK_SCRIPT}
-
-2) Merge this into the "hooks" object of ~/.claude/settings.json
+1) Merge this into the "hooks" object of ~/.claude/settings.json
    (keep any existing hooks — add PostToolUse alongside them):
 
 {block}
 
-3) Restart Claude Code (or start a new session) so the hook loads.
+2) Restart Claude Code (or start a new session) so the hook loads.
 
 Notes:
 - The hook finds the nearest ancestor directory containing a `.cortex/` folder,
