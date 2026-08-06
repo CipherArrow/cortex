@@ -10,7 +10,8 @@ import hashlib
 import json
 import os
 from dataclasses import dataclass, field
-from fnmatch import fnmatch
+import re
+from fnmatch import translate as _glob_translate
 from pathlib import Path
 
 from . import MANIFEST_FILE, POINTER_FILE
@@ -44,6 +45,21 @@ def _is_cache_dir(path: Path) -> bool:
         return False
 
 
+def _glob_matcher(globs):
+    """Compile the ignore globs into one regex tested once per filename.
+
+    `fnmatch` was called once per (file, glob) pair — a few hundred thousand
+    calls on a large tree, for a check that answers the same question as a
+    single alternation. Normcasing mirrors what fnmatch does internally, so
+    matching stays identical (including on case-insensitive platforms).
+    """
+    if not globs:
+        return lambda name: False
+    joined = "|".join(f"(?:{_glob_translate(os.path.normcase(g))})" for g in globs)
+    rx = re.compile(joined)
+    return lambda name: rx.match(os.path.normcase(name)) is not None
+
+
 def _looks_binary(path: Path) -> bool:
     """Cheap binary sniff: a NUL byte in the first 8 KiB."""
     try:
@@ -71,6 +87,7 @@ def is_source(rel_name: str) -> bool:
 def iter_files(cfg: Config):
     """Yield (abs_path: Path, rel_path: str) for every scannable source file."""
     root = cfg.root
+    is_ignored = _glob_matcher(cfg.ignore_globs)
     for dirpath, dirnames, filenames in os.walk(root, followlinks=cfg.follow_symlinks):
         # Prune ignored directories in place so os.walk skips them. Self-tagged
         # cache directories go too — see _is_cache_dir.
@@ -82,7 +99,7 @@ def iter_files(cfg: Config):
         for fn in filenames:
             if fn == POINTER_FILE:
                 continue  # Cortex's own root pointer is an output, not input
-            if any(fnmatch(fn, g) for g in cfg.ignore_globs):
+            if is_ignored(fn):
                 continue
             if classify(fn)[0] == "":
                 continue

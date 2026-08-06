@@ -101,6 +101,14 @@ Add `--json` to any read command for structured output.
   are parsed with compile warnings suppressed (`extractors/python_ast.py`) — a
   legacy regex escape in some third-party file is not Cortex's news to report,
   and stray warnings corrupt the tool output an agent is reading.
+- **`sync` is incremental in extraction, not in persistence.** It re-reads only
+  the changed files, but then re-resolves, re-ranks, and rewrites the whole
+  graph and index. That is deliberate: PageRank is global, so one new import
+  shifts ranks everywhere, and a partial index would be quietly wrong. The cost
+  is proportional to project size rather than change size — roughly 2s per save
+  on an 8,000-file tree, negligible below ~1,000 files. If you are wiring Cortex
+  into a save hook on a very large repo, prefer batching (`cortex sync` once
+  after a burst of edits) over per-file syncs.
 - **`MAP.md` is generated** — never hand-edit it; edit source and run `cortex sync`.
 - **The graph is best-effort, not a compiler.** It is a navigation aid. When the
   graph and the code disagree, the code wins — re-scan and trust the source.

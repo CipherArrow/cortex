@@ -122,8 +122,74 @@ def main():
 
         test_tail_index_equivalence()
         test_tail_index_is_used(root)
+        test_model_dicts_cover_all_fields()
+        test_glob_matcher_equivalence(root)
 
         print("\nALL SMOKE CHECKS PASSED")
+
+
+def test_glob_matcher_equivalence(root: Path):
+    """The compiled ignore-glob regex must decide exactly what fnmatch decided.
+
+    Getting this wrong doesn't crash — it silently changes which files are
+    indexed, in either direction. So compare against fnmatch itself rather than
+    against a fixture of expected answers.
+    """
+    import random
+    import string
+    from fnmatch import fnmatch
+
+    from cortex.walker import _glob_matcher
+
+    globs = load_config(root).ignore_globs
+    match = _glob_matcher(globs)
+
+    def agrees(name):
+        return match(name) == any(fnmatch(name, g) for g in globs)
+
+    named = ["a.py", "x.pyc", ".env", "test.min.js", "foo.lock", "a.b.c.py", "",
+             ".hidden", "UPPER.PY", "file.tar.gz", "x.map", "a.egg-info",
+             "package-lock.json", ".DS_Store", "core.py", "a~"]
+    check(all(agrees(n) for n in named),
+          f"compiled ignore-globs agree with fnmatch ({len(named)} known names)")
+
+    random.seed(3)
+    alphabet = string.ascii_letters + "._-*?[]"
+    fuzz = ["".join(random.choice(alphabet) for _ in range(random.randint(1, 14)))
+            for _ in range(2000)]
+    bad = [n for n in fuzz if not agrees(n)]
+    check(not bad, f"compiled ignore-globs agree with fnmatch on 2000 fuzzed names"
+                   f"{' — first mismatch: ' + repr(bad[0]) if bad else ''}")
+
+    check(_glob_matcher([])("anything.py") is False,
+          "empty glob list ignores nothing")
+
+
+def test_model_dicts_cover_all_fields():
+    """to_dict() is hand-written for speed, so it can drift from the dataclass.
+
+    A field added to Node/Edge but missed in to_dict would silently stop being
+    persisted — the graph would still load, just quietly lose data. Compare
+    against the dataclass definition instead of a hardcoded list, and round-trip
+    to prove the values survive.
+    """
+    from cortex.model import Edge, Node
+
+    for cls, sample in (
+        (Node, Node(id="i", kind="function", name="n", path="p.py", line=3,
+                    qualname="q", lang="python", summary="s", loc=9, rank=0.5)),
+        (Edge, Edge(src="a", dst="b", kind="imports", raw="x.y")),
+    ):
+        declared = set(cls.__dataclass_fields__)
+        emitted = set(sample.to_dict())
+        missing = declared - emitted
+        check(not missing,
+              f"{cls.__name__}.to_dict emits every field "
+              f"(missing: {sorted(missing) or 'none'})")
+        check(not (emitted - declared),
+              f"{cls.__name__}.to_dict emits no unknown field")
+        check(cls.from_dict(sample.to_dict()) == sample,
+              f"{cls.__name__} survives a to_dict/from_dict round trip")
 
 
 def test_tail_index_is_used(root: Path):

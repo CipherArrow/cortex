@@ -9,7 +9,7 @@ incremental updates diff cleanly.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 
 # --- Node kinds --------------------------------------------------------------
 DIR = "dir"
@@ -74,7 +74,24 @@ class Node:
             self.name = clean_text(self.name, 160)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        # Spelled out rather than dataclasses.asdict(): asdict() recurses and
+        # re-reads fields() per instance, which becomes the dominant cost of
+        # saving a graph once a project has tens of thousands of nodes — and
+        # every sync rewrites the whole graph. Fields are flat scalars, so the
+        # deep copy buys nothing. test_model_dicts_cover_all_fields keeps this
+        # honest if a field is ever added.
+        return {
+            "id": self.id,
+            "kind": self.kind,
+            "name": self.name,
+            "path": self.path,
+            "line": self.line,
+            "qualname": self.qualname,
+            "lang": self.lang,
+            "summary": self.summary,
+            "loc": self.loc,
+            "rank": self.rank,
+        }
 
     @classmethod
     def from_dict(cls, d: dict) -> "Node":
@@ -92,7 +109,8 @@ class Edge:
         return (self.src, self.dst, self.kind)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        # See Node.to_dict for why this is not dataclasses.asdict().
+        return {"src": self.src, "dst": self.dst, "kind": self.kind, "raw": self.raw}
 
     @classmethod
     def from_dict(cls, d: dict) -> "Edge":
