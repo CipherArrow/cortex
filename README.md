@@ -1,5 +1,10 @@
 # Cortex
 
+[![CI](https://github.com/CipherArrow/cortex/actions/workflows/ci.yml/badge.svg)](https://github.com/CipherArrow/cortex/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](pyproject.toml)
+
 **A self-updating knowledge graph for your projects — external memory for AI agents.**
 
 Cortex scans a project into a graph of files, symbols, docs and the links between
