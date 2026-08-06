@@ -95,7 +95,32 @@ index.
   Cortex does not add cryptographic index signing — it would protect nothing that
   the source itself isn't already exposed to.
 
-## Reporting
+## Supported versions
 
-This is a personal tool; open an issue on the repository for anything that looks
-like a real bypass of the boundaries above.
+Cortex is developed on `main`, and that is the only branch that receives fixes.
+There are no third-party dependencies, so there is no dependency-patch stream to
+track — updating means pulling the latest `main`.
+
+## Reporting a vulnerability
+
+**Please report privately first**, via GitHub's *Report a vulnerability* button
+on the repository's Security tab (private security advisory). That opens a
+channel visible only to the maintainer, so a real bypass isn't published before
+there is a fix. Please don't open a public issue for a suspected vulnerability.
+
+Useful in a report: which boundary above is crossed, the steps to reproduce, and
+what an attacker gains. A proof-of-concept repo or file is ideal, since most of
+the interesting surface is "hostile content in a scanned project."
+
+**In scope:** anything that breaks a guarantee in *What is defended* — code
+execution from scanned content, injection into the graph viewer, reading files
+outside the project root, reaching `cortex serve` without the token or from
+off-box, index corruption from concurrent writes, or `.cortex/` becoming
+world-readable.
+
+**Not vulnerabilities** (documented above as accepted limits): prompt-injection
+via scanned repository content, the absence of TLS on a loopback-only socket,
+and anything requiring an attacker who already runs code as your user or root.
+
+This is a personal project maintained in spare time — expect a best-effort
+response rather than a guaranteed SLA.

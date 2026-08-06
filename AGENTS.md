@@ -130,14 +130,14 @@ Add `--json` to any read command for structured output.
 | `cortex install-hook` | Print the Claude Code auto-sync hook block |
 | `cortex doctor` | Environment check |
 
-`<ref>` accepts a symbol name (`Engine`, `emotion.appraise`), a file path
-(`core/engine.py`), or a node id.
+`<ref>` accepts a symbol name (`Engine`, `auth.verify_token`), a file path
+(`core/server.py`), or a node id.
 
 ## How this saves tokens (the point)
 
-- **Instead of** `read core/engine.py` (3,000 lines) to find where emotion is
-  applied, run `cortex query emotion` → get `core/emotion.py:88 class EmotionEngine`
-  and `core/engine.py:412 _apply_emotion`, then read only those lines.
+- **Instead of** `read core/server.py` (3,000 lines) to find where auth is
+  enforced, run `cortex query auth` → get `core/auth.py:88 class TokenVerifier`
+  and `core/server.py:412 _require_auth`, then read only those lines.
 - **Instead of** re-reading a whole module after compression to remember its
   shape, run `cortex context <symbol>` for a compact "context pack".
 - **Instead of** grepping the tree to learn what breaks if you change a file, run
@@ -155,9 +155,14 @@ the commands above exactly like any other agent.
 ```bash
 # from this repo's root:
 PYTHONPATH=. python3 tests/test_smoke.py
+PYTHONPATH=. python3 tests/test_security.py
+PYTHONPATH=. python3 tests/test_languages.py
 ```
-Builds a tiny mixed Python/JS/Markdown project, scans it, and asserts that
-imports, wikilinks, headings, queries, and incremental sync all work.
+`test_smoke` builds a tiny mixed Python/JS/Markdown project, scans it, and
+asserts that imports, wikilinks, headings, queries, and incremental sync all
+work. `test_security` locks in the hardening (injection, symlink escape, file
+permissions, server auth). `test_languages` checks symbol extraction across the
+tiers. All three must pass before a change ships.
 
 ## Child DOX Index
 

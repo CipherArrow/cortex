@@ -4,7 +4,7 @@
 
 Cortex scans a project into a graph of files, symbols, docs and the links between
 them, then saves it as both a readable `MAP.md` and a fast SQLite index. Any AI
-agent (or you) can then *look things up* — `cortex query emotion` — instead of
+agent (or you) can then *look things up* — `cortex query auth` — instead of
 reading the whole codebase into a context window. It stays fresh automatically as
 files change.
 
@@ -101,7 +101,7 @@ Cortex/
     cli.py             # command-line interface
   hooks/               # Claude Code PostToolUse auto-sync hook + install guide
   templates/           # drop-in AGENTS snippet for other projects
-  tests/test_smoke.py  # end-to-end test
+  tests/               # test_smoke (end-to-end), test_security, test_languages
 ```
 
 Per scanned project, Cortex writes only `.cortex/` (graph.json, index.db,
@@ -156,5 +156,11 @@ Python 3.11+ (uses `tomllib`). Verified on Python 3.14. No other dependencies.
 ## Test
 
 ```bash
-PYTHONPATH=. python3 tests/test_smoke.py
+PYTHONPATH=. python3 tests/test_smoke.py       # end-to-end: scan, extract, query, sync
+PYTHONPATH=. python3 tests/test_security.py    # XSS, symlink escape, permissions, serve auth
+PYTHONPATH=. python3 tests/test_languages.py   # multi-language symbol extraction
 ```
+
+## License
+
+[MIT](LICENSE) — do what you like with it, keep the notice, no warranty.
