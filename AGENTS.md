@@ -125,7 +125,7 @@ Add `--json` to any read command for structured output.
 | `cortex neighbors <ref>` | All edges of a node |
 | `cortex hubs [-n N] [--kind K]` | Most central nodes |
 | `cortex status` | Stats + staleness |
-| `cortex graph --format mermaid\|dot\|html\|json` | Export for visualization (html = static atlas) |
+| `cortex graph --format mermaid\|dot\|html\|json [-o PATH]` | Export for visualization (html = static atlas); `-o` writes to a file |
 | `cortex serve [--port 8377]` | Live graph on localhost — glows amber where agents are looking |
 | `cortex install-hook` | Print the Claude Code auto-sync hook block |
 | `cortex doctor` | Environment check |

@@ -118,7 +118,10 @@ currently looking** — a live window into the agent's reasoning path. Set
 `CORTEX_AGENT=<name>` per tool to tag who touched what.
 
 `cortex graph --format html` writes the same atlas as a standalone offline file
-(no server, no live glow).
+(no server, no live glow), landing in `.cortex/graph.html` by default. Add
+`-o PATH` to write any format somewhere else — `cortex graph --format html -o
+docs/architecture.html` to commit it, or `--format dot -o g.dot` to pipe into
+Graphviz.
 
 ## Multiple agents at once
 

@@ -12,7 +12,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import CLI_NAME, DATA_DIR, TOOL_NAME, __version__
+from . import CLI_NAME, DATA_DIR, GRAPH_FILE, TOOL_NAME, __version__
 from .config import DEFAULT_CONFIG_TOML, load_config
 from . import query as Q
 from . import scan as S
@@ -204,19 +204,46 @@ def cmd_graph(args) -> int:
         print(f"No index. Run `{CLI_NAME} scan` first.", file=sys.stderr)
         return 2
     from . import emit_mermaid as M
-    if args.format == "mermaid":
-        print(M.to_mermaid(g, limit=args.limit))
-    elif args.format == "dot":
-        print(M.to_dot(g, limit=args.limit))
-    elif args.format == "html":
-        from . import emit_html as HT
+
+    def render() -> str:
+        if args.format == "mermaid":
+            return M.to_mermaid(g, limit=args.limit)
+        if args.format == "dot":
+            return M.to_dot(g, limit=args.limit)
+        if args.format == "html":
+            from . import emit_html as HT
+            return HT.render_page(g, limit=args.limit,
+                                  title=f"Cortex — {cfg.root.name}")
+        return (cfg.data_dir / GRAPH_FILE).read_text("utf-8")
+
+    if args.out:
+        # Explicit export: the caller chose the destination, so it lands at their
+        # umask rather than the 0600 the private index uses — an export is meant
+        # to be opened, committed, or published.
+        out = Path(args.out).expanduser()
+        if out.parent and not out.parent.is_dir():
+            print(f"No such directory: {out.parent}", file=sys.stderr)
+            return 2
+        try:
+            out.write_text(render(), "utf-8")
+        except OSError as e:
+            print(f"Could not write {out}: {e}", file=sys.stderr)
+            return 2
+        print(f"{args.format} graph written to {out}")
+        return 0
+
+    if args.format == "html":
+        # Default destination lives inside the private index, so match its perms.
+        from .secure import harden_file
         out = cfg.data_dir / "graph.html"
-        out.write_text(HT.render_page(g, limit=args.limit,
-                                      title=f"Cortex — {cfg.root.name}"), "utf-8")
+        out.write_text(render(), "utf-8")
+        harden_file(out)
         print(f"Interactive graph written to {out}")
         print("Open it in a browser (double-click or `xdg-open`).")
-    else:  # json
-        print(cfg.data_dir / "graph.json")
+    elif args.format == "json":
+        print(cfg.data_dir / GRAPH_FILE)   # path, not content — long-standing behaviour
+    else:
+        print(render())
     return 0
 
 
@@ -303,6 +330,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("graph", help="export the graph (mermaid/dot/html/json)")
     sp.add_argument("--format", choices=["mermaid", "dot", "html", "json"], default="mermaid")
     sp.add_argument("-n", "--limit", type=int, default=60)
+    sp.add_argument("-o", "--out", metavar="PATH",
+                    help="write the export here instead of stdout (html defaults "
+                         f"to {DATA_DIR}/graph.html)")
     sp.set_defaults(func=cmd_graph)
 
     sp = sub.add_parser("serve", help="live graph on localhost — glows as agents access nodes")
