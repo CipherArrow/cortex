@@ -120,7 +120,73 @@ def main():
         rows = Q.search(cfg, "brand_new")
         check(any(r["name"] == "brand_new" for r in rows), "sync indexes a new file")
 
+        test_tail_index_equivalence()
+        test_tail_index_is_used(root)
+
         print("\nALL SMOKE CHECKS PASSED")
+
+
+def test_tail_index_is_used(root: Path):
+    """resolve() must hand the prebuilt index down, not fall back to scanning.
+
+    Equivalence alone would still pass if the call site stopped passing the
+    index — and the cost of that regression is quadratic, so it is worth
+    asserting the wiring directly.
+    """
+    import cortex.graph as G
+
+    got_index = []
+    original = G._match_py
+
+    def spy(rel, by_path, by_tail=None):
+        got_index.append(by_tail is not None)
+        return original(rel, by_path, by_tail)
+
+    G._match_py = spy
+    try:
+        S.full_scan(root)
+    finally:
+        G._match_py = original
+
+    check(bool(got_index), "python import resolution ran during the scan")
+    check(all(got_index),
+          f"every _match_py call got the prebuilt index ({len(got_index)} calls)")
+
+
+def test_tail_index_equivalence():
+    """The prebuilt tail index must answer exactly like the linear scan.
+
+    _match_py's tail fallback is served from an index built once per resolve()
+    instead of scanning every path per import edge. The two must stay in
+    agreement, or the speedup would silently change which imports resolve.
+    """
+    import posixpath
+
+    from cortex.graph import _match_py
+
+    by_path = {
+        "pkg/util.py": "id-util",
+        "pkg/sub/util.py": "id-sub-util",       # duplicate tail: first must win
+        "pkg/core.py": "id-core",
+        "top.py": "id-top",                      # no directory component
+        "web/lib.js": "id-lib",                  # non-Python must be ignored
+        "pkg/__init__.py": "id-init",
+    }
+    # Built exactly as Graph.resolve() builds it.
+    by_tail = {}
+    for path, nid in by_path.items():
+        if path.endswith(".py"):
+            by_tail.setdefault(posixpath.basename(path), nid)
+
+    cases = ["util", "pkg/util", "deep/nested/util", "core", "top",
+             "lib", "missing", "sub/util", "__init__", ""]
+    mismatches = [c for c in cases
+                  if _match_py(c, by_path, by_tail) != _match_py(c, by_path, None)]
+    check(not mismatches, f"tail index matches the linear scan on all inputs "
+                          f"({len(cases)} cases)")
+    # Non-vacuous: the fallback must actually be exercised, not all-empty.
+    check(_match_py("deep/nested/util", by_path, by_tail) == "id-util",
+          "tail fallback still resolves a nested import to the first match")
 
 
 if __name__ == "__main__":

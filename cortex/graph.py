@@ -63,6 +63,14 @@ class Graph:
             if n.kind in (FILE, MODULE) and n.path:
                 stem = posixpath.splitext(posixpath.basename(n.path))[0]
                 by_stem[stem.lower()].append(n.id)
+        # Python basename -> first matching file id. Built once here because the
+        # tail fallback in _match_py is consulted per import edge; scanning every
+        # path on each call makes resolution O(files x imports), which dominates
+        # the scan on a large repo. Insertion order preserves first-match-wins.
+        by_tail: dict[str, str] = {}
+        for path, nid in by_path.items():
+            if path.endswith(".py"):
+                by_tail.setdefault(posixpath.basename(path), nid)
         sym_by_name = defaultdict(list)
         for n in self.nodes.values():
             if n.kind in ("function", "method", "class"):
@@ -74,7 +82,7 @@ class Graph:
             if e.dst:                       # already a structural/internal edge
                 resolved.append(e)
                 continue
-            dst = self._resolve_one(e, by_path, by_stem, sym_by_name, file_of)
+            dst = self._resolve_one(e, by_path, by_stem, sym_by_name, file_of, by_tail)
             if dst:
                 e.dst = dst
                 resolved.append(e)
@@ -95,13 +103,13 @@ class Graph:
             clean.append(e)
         self.edges = clean
 
-    def _resolve_one(self, e, by_path, by_stem, sym_by_name, file_of):
+    def _resolve_one(self, e, by_path, by_stem, sym_by_name, file_of, by_tail=None):
         raw = e.raw.strip()
         if not raw:
             return ""
         if e.kind == IMPORTS:
             src_path = file_of.get(e.src, "")
-            hit = _resolve_import(raw, src_path, by_path, by_stem)
+            hit = _resolve_import(raw, src_path, by_path, by_stem, by_tail)
             return hit or self._external(_top_pkg(raw))
         if e.kind == INHERITS:
             cands = [i for i in sym_by_name.get(raw, [])
@@ -191,7 +199,8 @@ def _top_pkg(raw: str) -> str:
     return raw or "unknown"
 
 
-def _resolve_import(raw: str, src_path: str, by_path: dict, by_stem: dict) -> str:
+def _resolve_import(raw: str, src_path: str, by_path: dict, by_stem: dict,
+                    by_tail: dict | None = None) -> str:
     """Try to map an import string to an internal file id. Returns '' if external."""
     # JS/TS relative import (has a slash: "./lib", "../x/y"). Checked first so
     # it isn't mistaken for a Python dotted relative import.
@@ -207,11 +216,11 @@ def _resolve_import(raw: str, src_path: str, by_path: dict, by_stem: dict) -> st
         for _ in range(dots - 1):
             base = posixpath.dirname(base)
         rel = posixpath.join(base, mod.replace(".", "/")) if mod else base
-        return _match_py(rel, by_path)
+        return _match_py(rel, by_path, by_tail)
 
     # Python absolute dotted module.
     if src_path.endswith(".py") or ("." in raw and "/" not in raw):
-        hit = _match_py(raw.replace(".", "/"), by_path)
+        hit = _match_py(raw.replace(".", "/"), by_path, by_tail)
         if hit:
             return hit
 
@@ -236,15 +245,18 @@ def _resolve_import(raw: str, src_path: str, by_path: dict, by_stem: dict) -> st
     return ""
 
 
-def _match_py(rel: str, by_path: dict) -> str:
+def _match_py(rel: str, by_path: dict, by_tail: dict | None = None) -> str:
     rel = rel.strip("/")
     for cand in (f"{rel}.py", f"{rel}/__init__.py", f"{rel}.pyi"):
         if cand in by_path:
             return by_path[cand]
     # Try matching just the tail (e.g. import maps to a nested package root).
-    tail = rel.split("/")[-1]
+    tail = rel.split("/")[-1] + ".py"
+    if by_tail is not None:
+        return by_tail.get(tail, "")
+    # No prebuilt index (direct caller): fall back to a scan.
     for path, nid in by_path.items():
-        if path.endswith(f"/{tail}.py") or path == f"{tail}.py":
+        if path.endswith(f"/{tail}") or path == tail:
             return nid
     return ""
 
