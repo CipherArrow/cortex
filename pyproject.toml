@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cortex-graph"
+description = "A self-updating knowledge graph for your projects — external memory for AI agents."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "CipherArrow" }]
+keywords = ["ai", "agents", "knowledge-graph", "code-search", "llm", "memory"]
+dynamic = ["version"]
+
+# Intentionally empty, and part of the design: Cortex is standard library only,
+# so there is no supply chain to poison and nothing to resolve at install time.
+dependencies = []
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/CipherArrow/cortex"
+Repository = "https://github.com/CipherArrow/cortex"
+Issues = "https://github.com/CipherArrow/cortex/issues"
+Security = "https://github.com/CipherArrow/cortex/blob/main/SECURITY.md"
+
+# The distribution is `cortex-graph` (the name `cortex` is taken on PyPI), but
+# the command it installs is `cortex`, matching the docs and the bin/ shim.
+[project.scripts]
+cortex = "cortex.cli:main"
+
+[tool.setuptools]
+packages = ["cortex", "cortex.extractors"]
+
+[tool.setuptools.dynamic]
+version = { attr = "cortex.__version__" }

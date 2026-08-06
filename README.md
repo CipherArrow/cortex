@@ -23,8 +23,12 @@ a shell command**, so that is all Cortex is.
 ## Quickstart
 
 ```bash
-# 1. Make the command available (one time)
-ln -s "$PWD/bin/cortex" ~/.local/bin/cortex     # or use: PYTHONPATH=. python3 -m cortex
+# 1. Install (one time). Pick either:
+pipx install git+https://github.com/CipherArrow/cortex     # isolated, recommended
+pip install git+https://github.com/CipherArrow/cortex      # or into your environment
+# ...or no install at all — clone and symlink the shim:
+#   git clone https://github.com/CipherArrow/cortex && cd cortex
+#   ln -s "$PWD/bin/cortex" ~/.local/bin/cortex
 cortex doctor
 
 # 2. Map a project (first full scan)
@@ -81,7 +85,8 @@ with a built-in PageRank so `hubs` and the map surface the real load-bearing fil
 Cortex/
   AGENTS.md            # the agent guide — point any AI here
   README.md            # this file
-  bin/cortex           # launcher shim (python -m cortex with PYTHONPATH set)
+  pyproject.toml       # packaging (stdlib only — no dependencies)
+  bin/cortex           # launcher shim, for use without installing
   cortex/              # the package
     model.py           # Node/Edge dataclasses + stable content-derived ids
     config.py          # scan config: ignores, language table, .cortex/config.toml
@@ -154,7 +159,13 @@ prompt-injection is inherent to reading any repo): [SECURITY.md](SECURITY.md).
 
 ## Requirements
 
-Python 3.11+ (uses `tomllib`). Verified on Python 3.14. No other dependencies.
+Python 3.11+ (uses `tomllib`). Verified on Python 3.14. No other dependencies —
+`pip show cortex-graph` lists an empty `Requires:`, and that is a design
+constraint, not an accident: nothing to resolve at install time means no supply
+chain to poison.
+
+> The distribution is named **`cortex-graph`** (the name `cortex` was already
+> taken on PyPI); the command it installs is **`cortex`**.
 
 ## Test
 

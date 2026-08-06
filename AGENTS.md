@@ -29,8 +29,9 @@ a shell command, you can use Cortex.
 ## Setup (once per machine)
 
 ```bash
-# From this repo's root, put the launcher on PATH:
-ln -s "$PWD/bin/cortex" ~/.local/bin/cortex
+pipx install git+https://github.com/CipherArrow/cortex   # or pip install
+# ...or, from a clone, put the launcher on PATH instead of installing:
+#   ln -s "$PWD/bin/cortex" ~/.local/bin/cortex
 cortex doctor          # confirms python + sqlite fts5
 ```
 

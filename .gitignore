@@ -1,5 +1,11 @@
 __pycache__/
 *.pyc
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
 # Cortex's own self-scan output (regenerate with `cortex scan`)
 .cortex/
 CORTEX.md
